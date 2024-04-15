@@ -1,6 +1,5 @@
 #Find the network address, broadcast address, first and second usable addresses for a given IP address and subnet mask.
 
-
 import sys
 import math
 import scipy.integrate as integrate
@@ -63,7 +62,7 @@ def get_slash_mask_bin(mask: str)->str:
             return get_dotted_mask_bin(dotted)
     except: return None
 
-def set_host_bits(ip_addr_bin: str, mask_bin: str, value: str):
+def set_host_bits(ip_addr_bin: str, mask_bin: str, value: str)->str:
     """
     Change the value of a given IP address' host bits according to a given subnet mask.
     Binary strings of length 32 must be entered for the IP address and subnet mask. 
@@ -77,7 +76,7 @@ def set_host_bits(ip_addr_bin: str, mask_bin: str, value: str):
     except:
         return None
 
-def get_usable_address_range(network_addr_bin: str, broadcast_addr_bin: str, mask_bin: str):
+def get_usable_address_range(network_addr_bin: str, broadcast_addr_bin: str, mask_bin: str)->tuple:
     """
     Calculate the first usable and last usable IP addresses using the given network address and broadcast address.
     Binary strings of length 32 must be entered for the network address, broadcast address, and subnet mask. 
@@ -93,7 +92,7 @@ def get_usable_address_range(network_addr_bin: str, broadcast_addr_bin: str, mas
         return network_addr[:i0] + first, broadcast_addr[:i0] + last
     except: return None
 
-def bin_to_decimal(ip_addr_bin: str):
+def bin_to_decimal(ip_addr_bin: str)->str:
     """
     Convert a binary string to a dot-decimal IPv4 address.
     Binary strings of length 32 must be entered for the IP address. 
