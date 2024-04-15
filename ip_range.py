@@ -1,3 +1,6 @@
+#Find the network address, broadcast address, first and second usable addresses for a given IP address and subnet mask.
+
+
 import sys
 import math
 import scipy.integrate as integrate
