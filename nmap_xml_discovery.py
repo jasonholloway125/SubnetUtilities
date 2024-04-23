@@ -39,7 +39,7 @@ def extract_data(input_file_path: str, domain_name=False, status=False)->list:
     for y in root.findall('host'):
         row = [{}, {}, {}]
         for x in y:
-            if x.tag == "address":
+            if x.tag == "address" and x.attrib["addrtype"] == "ipv4":
                 row[0] = x.attrib
             elif domain_name and x.tag == "hostnames":
                 for z in x:
@@ -152,4 +152,5 @@ if __name__ == '__main__':
             print(f"{csv} failed to save.")
     
     
+        
         
