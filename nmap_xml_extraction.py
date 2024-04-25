@@ -11,6 +11,7 @@ CSV output is optional for more data.
 Improved from nmap_xml_discovery.py found at https://github.com/jasonholloway125/SubnetUtilities.
 """
 
+import json
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -21,6 +22,7 @@ __ARGS__ = {
     "output": "-o",
     "print": "-pri",
     "csv": "-csv",
+    "json": "-json",
     "ports_only": "-pi",
     "ports_any": "-pa",
     "ports_number": "-pn",
@@ -38,7 +40,7 @@ def get_arguments(argv: list)->list:
     i = 0
     while(i < len(argv)):
         a = argv[i].strip()
-        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"]]:
+        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"]]:
             try:
                 args.append([a, argv[i + 1].strip()])
                 i += 1
@@ -76,11 +78,17 @@ def extract_data(input_file_path: str)->list:
             elif x.tag == "ports":
                 for z in x:
                     if z.tag == "port":
-                        row["ports"].append(z.attrib)
+                        port = z.attrib
+                        for y in z:
+                            port[y.tag] = y.attrib
+                        row["ports"].append(port)
             elif x.tag == "os":
                 for z in x:
                     if z.tag == "osmatch":
-                        row["os"].append(z.attrib)
+                        os_match = z.attrib
+                        for y in z:
+                            os_match[y.tag] = y.attrib
+                        row["os"].append(os_match)
             elif x.tag == "status":
                 row["status"] = x.attrib
         data.append(row)
@@ -141,6 +149,20 @@ def write_csv(output_file_path:str, data:list)->bool:
     except:
         return False
     
+def write_json(output_file_path:str, data:list)->bool:
+    """
+    Write detailed list of data to a json file.
+    """
+    json_object = json.dumps(data, indent=4)
+
+    try:
+        with open(output_file_path, 'w') as file:
+            file.write(json_object)
+            return True
+    except:
+        return False
+
+
 def port_str_to_list(port_str:str)->list:
     """
     Convert a string of ports into a list 
@@ -167,7 +189,8 @@ if __name__ == '__main__':
     {__ARGS__["input"]} <file>: input file path for Nmap XML output
     {__ARGS__["output"]} <file>: output file path for list of IP addresses
     {__ARGS__["print"]}: print list of IP addresses to console
-    {__ARGS__["csv"]} <file>: export data to csv file path
+    {__ARGS__["csv"]} <file>: export data to csv file path (MISSING FUNCTIONALITY; NOT SUPPORTED)
+    {__ARGS__["json"]} <file>: export data to json file path
     {__ARGS__["ports_only"]} <port_a,port_b,...>: only include IP addresses with all given open ports
     {__ARGS__["ports_any"]} <port_a,port_b,...>: only inlude IP addresses with at least one of given open ports
     {__ARGS__["ports_number"]} <num>: only include IP addresses with at least a given number of open ports 
@@ -190,7 +213,7 @@ if __name__ == '__main__':
 
     options = {}
     for a in args:
-        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"]]:
+        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"]]:
             options[a[0]] = a[1]
         elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
             options[a[0]] = True
@@ -202,7 +225,7 @@ if __name__ == '__main__':
         print("Input file could not be found.")
         sys.exit(9)
 
-    if __ARGS__["output"] not in options and __ARGS__["print"] not in options and __ARGS__["csv"] not in options:
+    if __ARGS__["output"] not in options and __ARGS__["print"] not in options and __ARGS__["csv"] not in options and __ARGS__["json"] not in options:
         print("No argument for output (file or print).")
         sys.exit(4)
 
@@ -244,6 +267,10 @@ if __name__ == '__main__':
     if __ARGS__["csv"] in options:
         if not write_csv(options[__ARGS__["csv"]], data):
             print(f"{options[__ARGS__['csv']]} failed to save.")
+
+    if __ARGS__["json"] in options:
+        if not write_json(options[__ARGS__["json"]], data):
+            print(f"{options[__ARGS__['json']]} failed to save.")
     
     
         
