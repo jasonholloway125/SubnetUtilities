@@ -129,9 +129,9 @@ def write_csv(output_file_path:str, data:list)->bool:
         text += "/".join([j["addr"] for j in i["addr"] if j["addrtype"] == "mac"]) + ","
         text += "/".join([j["name"] for j in i["hostnames"]]) + ","
         os = [j for j in i["os"]]
-        if len(os) > 0: text += f"{os[0]["name"]},{os[0]["accuracy"]},{len(os)},"
+        if len(os) > 0: text += f"{os[0]['name']},{os[0]['accuracy']},{len(os)},"
         else: text += ",,,"
-        text += f"{i["status"]["state"]},{i["status"]["reason"]}\n"
+        text += f"{i['status']['state']},{i['status']['reason']}\n"
     try:
         with open(output_file_path, 'w') as file:
             file.write(text)
@@ -205,14 +205,14 @@ if __name__ == '__main__':
     if __ARGS__["ports_only"] in options:
         ports_only = port_str_to_list(options[__ARGS__["ports_only"]])
         if ports_only is None:
-            print(f"Invalid argument(s) for {__ARGS__["ports_only"]}.")
+            print(f"Invalid argument(s) for {__ARGS__['ports_only']}.")
             sys.exit(6)
 
     ports_any = None
     if __ARGS__["ports_any"] in options:
         ports_any = port_str_to_list(options[__ARGS__["ports_any"]])
         if ports_any is None:
-            print(f"Invalid argument(s) for {__ARGS__["ports_any"]}.")
+            print(f"Invalid argument(s) for {__ARGS__['ports_any']}.")
             sys.exit(7)
 
     ports_number = None
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         try:
             ports_number = int(options[__ARGS__["ports_number"]])
         except:
-            print(f"Invalid argument for {__ARGS__["ports_number"]}.")
+            print(f"Invalid argument for {__ARGS__['ports_number']}.")
             sys.exit(8)
 
     data = extract_data(options[__ARGS__["input"]])
@@ -234,11 +234,11 @@ if __name__ == '__main__':
     if __ARGS__["output"] in options:
         if text is None: text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options)
         if not write_txt(options[__ARGS__["output"]], text):
-            print(f"{options[__ARGS__["output"]]} failed to save.")
+            print(f"{options[__ARGS__['output']]} failed to save.")
 
     if __ARGS__["csv"] in options:
         if not write_csv(options[__ARGS__["csv"]], data):
-            print(f"{options[__ARGS__["csv"]]} failed to save.")
+            print(f"{options[__ARGS__['csv']]} failed to save.")
     
     
         
