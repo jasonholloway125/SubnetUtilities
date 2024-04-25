@@ -125,10 +125,11 @@ def write_csv(output_file_path:str, data:list)->bool:
     """
     text = "IPv4,IPv6,MAC,Hostname,OSMatch#1,MatchAccuracy#1,OSMatchCount,Status,StatusReason\n"
     for i in data:
-        text += "/".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv4"]) + ","
-        text += "/".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv6"]) + ","
-        text += "/".join([j["addr"] for j in i["addr"] if j["addrtype"] == "mac"]) + ","
-        text += "/".join([j["name"] for j in i["hostnames"]]) + ","
+        text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv4"]) + ","
+        text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv6"]) + ","
+        text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "mac"]) + ","
+        text += " ".join([j["name"] for j in i["hostnames"]]) + ","
+        text += " ".join([f"{j['portid']}({j['protocol']})" for j in i["ports"]]) + ","
         os = [j for j in i["os"]]
         if len(os) > 0: text += f"{os[0]['name']},{os[0]['accuracy']},{len(os)},"
         else: text += ",,,"
