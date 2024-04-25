@@ -11,6 +11,7 @@ CSV output is optional for more data.
 Improved from nmap_xml_discovery.py found at https://github.com/jasonholloway125/SubnetUtilities.
 """
 
+import os
 import sys
 import xml.etree.ElementTree as ET
 
@@ -196,6 +197,9 @@ if __name__ == '__main__':
     if __ARGS__["input"] not in options:
         print("No input file argument.")
         sys.exit(3)
+    elif not os.path.exists(options[__ARGS__["input"]]):
+        print("Input file could not be found.")
+        sys.exit(9)
 
     if __ARGS__["output"] not in options and __ARGS__["print"] not in options and __ARGS__["csv"] not in options:
         print("No argument for output (file or print).")
