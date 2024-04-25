@@ -123,7 +123,7 @@ def write_csv(output_file_path:str, data:list)->bool:
     """
     Write detailed list of data to a csv file.
     """
-    text = "IPv4,IPv6,MAC,Hostname,OpenPort(s)OSMatch#1,MatchAccuracy#1,OSMatchCount,Status,StatusReason\n"
+    text = "IPv4,IPv6,MAC,Hostname,OpenPort(s),OSMatch#1,MatchAccuracy#1,OSMatchCount,Status,StatusReason\n"
     for i in data:
         text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv4"]) + ","
         text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv6"]) + ","
