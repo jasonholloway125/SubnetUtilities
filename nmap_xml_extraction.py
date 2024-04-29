@@ -6,7 +6,8 @@ By Jason Holloway
 
 Rudimentary Python script for producing a list of IP addresses from Nmap XML output.
 Specify port options, os matches, and other options to turn the jumble of XML tags into a clean TXT of IP addresses.
-CSV output is optional for more data. 
+Can additionally export list of domain names.
+JSON & CSV output is optional for more data. 
 
 Improved from nmap_xml_discovery.py found at https://github.com/jasonholloway125/SubnetUtilities.
 """
@@ -30,7 +31,8 @@ __ARGS__ = {
     "os_match": "-os",
     "has_domain": "-d",
     "server_up": "-s",
-    "server_up_ports": "-sp"
+    "server_up_ports": "-sp",
+    "return_domain": "-od"
 }
 
 
@@ -43,7 +45,7 @@ def get_arguments(argv: list)->list[str]:
     i = 0
     while(i < len(argv)):
         a = argv[i].strip()
-        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
+        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"], __ARGS__["return_domain"]]:
             try:
                 args.append([a, argv[i + 1].strip()])
                 i += 1
@@ -61,43 +63,46 @@ def extract_data(input_file_path: str)->list[dict]:
     Extract the host data from the XML file in list format.
     Element 0: Address, Element 1: Domain Name, Element 3: Status
     """
-    tree = ET.parse(input_file_path)
-    root = tree.getroot()
-    data = [root.attrib]
-    for y in root.findall('host'):
-        row = {
-            "addr": [], 
-            "hostnames": [], 
-            "ports": [], 
-            "os": [], 
-            "status": {}
-            }
-        for x in y:
-            if x.tag == "address":
-                row["addr"].append(x.attrib)
-            elif x.tag == "hostnames":
-                for z in x:
-                    row["hostnames"].append(z.attrib)
-            elif x.tag == "ports":
-                for z in x:
-                    if z.tag == "port":
-                        port = z.attrib
-                        for y in z:
-                            port[y.tag] = y.attrib
-                        row["ports"].append(port)
-            elif x.tag == "os":
-                for z in x:
-                    if z.tag == "osmatch":
-                        os_match = z.attrib
-                        for y in z:
-                            os_match[y.tag] = y.attrib
-                        row["os"].append(os_match)
-            elif x.tag == "status":
-                row["status"] = x.attrib
-        data.append(row)
-    return data
+    try:
+        tree = ET.parse(input_file_path)
+        root = tree.getroot()
+        data = [root.attrib]
+        for y in root.findall('host'):
+            row = {
+                "addr": [], 
+                "hostnames": [], 
+                "ports": [], 
+                "os": [], 
+                "status": {}
+                }
+            for x in y:
+                if x.tag == "address":
+                    row["addr"].append(x.attrib)
+                elif x.tag == "hostnames":
+                    for z in x:
+                        row["hostnames"].append(z.attrib)
+                elif x.tag == "ports":
+                    for z in x:
+                        if z.tag == "port":
+                            port = z.attrib
+                            for y in z:
+                                port[y.tag] = y.attrib
+                            row["ports"].append(port)
+                elif x.tag == "os":
+                    for z in x:
+                        if z.tag == "osmatch":
+                            os_match = z.attrib
+                            for y in z:
+                                os_match[y.tag] = y.attrib
+                            row["os"].append(os_match)
+                elif x.tag == "status":
+                    row["status"] = x.attrib
+            data.append(row)
+        return data
+    except:
+        return None
 
-def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False, server_up:int=None, server_up_ports:int=None)->str:
+def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False, server_up:int=None, server_up_ports:int=None, rtn_domain=False)->str:
     """
     Convert the IP Addresses in the data list into a strings separated by newline.
     """
@@ -106,7 +111,7 @@ def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_nu
     for i in data[1:]:
         if os_match and not len(i["os"]):
             continue
-        if has_domain and not len(i["hostnames"]):
+        if (has_domain or rtn_domain) and not len(i["hostnames"]):
             continue
         if ports_number is not None and len([j for j in i["ports"]]) < ports_number:
             continue
@@ -122,7 +127,10 @@ def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_nu
             continue
         if server_up and not (are_servers_up(addr=[j['addr'] for j in addr], timeout=server_up_ports) or are_servers_up(addr=[j['name'] for j in i["hostnames"]], timeout=server_up_ports)):
             continue
-        text += addr[0]["addr"] + "\n"
+        if rtn_domain:
+            for j in i["hostnames"]: text += j["name"] + "\n"
+        else:
+            for j in addr: text += j["addr"] + "\n"
     return text
 
 def write_txt(output_file_path:str, text:str)->bool:
@@ -210,6 +218,7 @@ if __name__ == '__main__':
     {__ARGS__["help"]}: display usage and options
     {__ARGS__["input"]} <file>: input file path for Nmap XML output
     {__ARGS__["output"]} <file>: output file path for list of IP addresses
+    {__ARGS__["return_domain"]} <file>: output file path for list of domains names
     {__ARGS__["print"]}: print list of IP addresses to console
     {__ARGS__["csv"]} <file>: export data to csv file path (MISSING FUNCTIONALITY; NOT SUPPORTED)
     {__ARGS__["json"]} <file>: export data to json file path
@@ -238,7 +247,7 @@ if __name__ == '__main__':
 
     options = {}
     for a in args:
-        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
+        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"], __ARGS__["return_domain"]]:
             options[a[0]] = a[1]
         elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
             options[a[0]] = True
@@ -250,7 +259,7 @@ if __name__ == '__main__':
         print("Input file could not be found.")
         sys.exit(9)
 
-    if __ARGS__["output"] not in options and __ARGS__["print"] not in options and __ARGS__["csv"] not in options and __ARGS__["json"] not in options:
+    if __ARGS__["output"] not in options and __ARGS__["print"] not in options and __ARGS__["csv"] not in options and __ARGS__["json"] not in options and __ARGS__["return_domain"] not in options:
         print("No argument for output (file or print).")
         sys.exit(4)
 
@@ -293,6 +302,9 @@ if __name__ == '__main__':
             sys.exit(11)
 
     data = extract_data(options[__ARGS__["input"]])
+    if data is None:
+        print(f"Invalid XML file: {options[__ARGS__['input']]}")
+        sys.exit(11)
     #print(data)
 
     text = None
@@ -313,5 +325,9 @@ if __name__ == '__main__':
         if not write_json(options[__ARGS__["json"]], data):
             print(f"{options[__ARGS__['json']]} failed to save.")
     
+    if __ARGS__["return_domain"] in options:
+        text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=server_up, server_up_ports=server_up_ports, rtn_domain=True)
+        if not write_txt(options[__ARGS__["return_domain"]], text):
+            print(f"{options[__ARGS__['return_domain']]} failed to save.")
     
         
