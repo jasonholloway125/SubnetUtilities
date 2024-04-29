@@ -11,6 +11,7 @@ CSV output is optional for more data.
 Improved from nmap_xml_discovery.py found at https://github.com/jasonholloway125/SubnetUtilities.
 """
 
+import requests
 import json
 import os
 import sys
@@ -27,11 +28,12 @@ __ARGS__ = {
     "ports_any": "-pa",
     "ports_number": "-pn",
     "os_match": "-os",
-    "has_domain": "-d"
+    "has_domain": "-d",
+    "server_up": "-s"
 }
 
 
-def get_arguments(argv: list)->list:
+def get_arguments(argv: list)->list[str]:
     """
     Return a list of command-line arguments.
     Return only invalid argument if found.
@@ -46,21 +48,21 @@ def get_arguments(argv: list)->list:
                 i += 1
             except:
                 return a
-        elif a in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
+        elif a in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"], __ARGS__["server_up"]]:
             args.append([a])
         else:
             return a
         i += 1
     return args
     
-def extract_data(input_file_path: str)->list:
+def extract_data(input_file_path: str)->list[dict]:
     """
     Extract the host data from the XML file in list format.
     Element 0: Address, Element 1: Domain Name, Element 3: Status
     """
     tree = ET.parse(input_file_path)
     root = tree.getroot()
-    data = []
+    data = [root.attrib]
     for y in root.findall('host'):
         row = {
             "addr": [], 
@@ -94,12 +96,13 @@ def extract_data(input_file_path: str)->list:
         data.append(row)
     return data
 
-def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False)->str:
+def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False, server_up=False)->str:
     """
     Convert the IP Addresses in the data list into a strings separated by newline.
     """
+
     text = ""
-    for i in data:
+    for i in data[1:]:
         if os_match and not len(i["os"]):
             continue
         if has_domain and not len(i["hostnames"]):
@@ -112,8 +115,11 @@ def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_nu
         if ports_any is not None and not [j for j in i["ports"] if j["portid"] in ports_any]:
             continue
         addr = [j for j in i["addr"] if j["addrtype"] == "ipv4" or j["addrtype"] == "ipv6"]
-        if addr:
-            text += addr[0]["addr"] + "\n"
+        if not addr:
+            continue
+        if server_up and not (are_servers_up(addr=[j['addr'] for j in addr]) or are_servers_up(addr=[j['name'] for j in i["hostnames"]])):
+            continue
+        text += addr[0]["addr"] + "\n"
     return text
 
 def write_txt(output_file_path:str, text:str)->bool:
@@ -132,7 +138,7 @@ def write_csv(output_file_path:str, data:list)->bool:
     Write detailed list of data to a csv file.
     """
     text = "IPv4,IPv6,MAC,Hostname,OpenPort(s),OSMatch#1,MatchAccuracy#1,OSMatchCount,Status,StatusReason\n"
-    for i in data:
+    for i in data[1:]:
         text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv4"]) + ","
         text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "ipv6"]) + ","
         text += " ".join([j["addr"] for j in i["addr"] if j["addrtype"] == "mac"]) + ","
@@ -163,7 +169,7 @@ def write_json(output_file_path:str, data:list)->bool:
         return False
 
 
-def port_str_to_list(port_str:str)->list:
+def port_str_to_list(port_str:str)->list[str]:
     """
     Convert a string of ports into a list 
     Input: '10,20,30'
@@ -177,6 +183,19 @@ def port_str_to_list(port_str:str)->list:
         return [str(j) for j in ports]
     except:
         return None
+    
+def are_servers_up(addr=list[str])->bool:
+    """
+    Return True if an IP address within a list of IP addresses has an online web server.
+    Returns False for otherwise.
+    """
+    for i in addr:
+        try:
+            page = requests.get(f"http://{i}")
+            return True
+        except:
+            continue
+    return False
 
 
 
@@ -195,7 +214,8 @@ if __name__ == '__main__':
     {__ARGS__["ports_any"]} <port_a,port_b,...>: only inlude IP addresses with at least one of given open ports
     {__ARGS__["ports_number"]} <num>: only include IP addresses with at least a given number of open ports 
     {__ARGS__["os_match"]}: only include IP addresses with an OS match
-    {__ARGS__["has_domain"]}: only include IP addresses with domain names""")
+    {__ARGS__["has_domain"]}: only include IP addresses with domain names
+    {__ARGS__["server_up"]}: only include IP addresses with online web servers""")
         sys.exit(1)
 
     if len(set(sys.argv)) != len(sys.argv):
@@ -215,7 +235,7 @@ if __name__ == '__main__':
     for a in args:
         if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"]]:
             options[a[0]] = a[1]
-        elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
+        elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"], __ARGS__["server_up"]]:
             options[a[0]] = True
 
     if __ARGS__["input"] not in options:
@@ -256,11 +276,11 @@ if __name__ == '__main__':
 
     text = None
     if __ARGS__["print"] in options:
-        text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options)
+        text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=__ARGS__["server_up"] in options)
         print(text)
 
     if __ARGS__["output"] in options:
-        if text is None: text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options)
+        if text is None: text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=__ARGS__["server_up"] in options)
         if not write_txt(options[__ARGS__["output"]], text):
             print(f"{options[__ARGS__['output']]} failed to save.")
 
