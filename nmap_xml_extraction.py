@@ -281,7 +281,7 @@ if __name__ == '__main__':
         try:
             server_up = int(options[__ARGS__["server_up"]])
         except ValueError:
-            print(f"Invalid argument: {__ARGS__["server_up"]} {options[__ARGS__["server_up"]]}")
+            print(f"Invalid argument: {__ARGS__['server_up']} {options[__ARGS__['server_up']]}")
             sys.exit(10)
 
     server_up_ports = None
@@ -289,7 +289,7 @@ if __name__ == '__main__':
         try:
             server_up_ports = int(options[__ARGS__["server_up_ports"]])
         except ValueError:
-            print(f"Invalid argument: {__ARGS__["server_up_ports"]} {options[__ARGS__["server_up_ports"]]}")
+            print(f"Invalid argument: {__ARGS__['server_up_ports']} {options[__ARGS__['server_up_ports']]}")
             sys.exit(11)
 
     data = extract_data(options[__ARGS__["input"]])
