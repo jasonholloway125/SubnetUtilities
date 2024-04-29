@@ -43,13 +43,13 @@ def get_arguments(argv: list)->list[str]:
     i = 0
     while(i < len(argv)):
         a = argv[i].strip()
-        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"]]:
+        if a in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
             try:
                 args.append([a, argv[i + 1].strip()])
                 i += 1
             except:
                 return a
-        elif a in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
+        elif a in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
             args.append([a])
         else:
             return a
@@ -97,11 +97,11 @@ def extract_data(input_file_path: str)->list[dict]:
         data.append(row)
     return data
 
-def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False, server_up=False, server_up_ports=False)->str:
+def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_number:list=None, has_domain:bool=False, os_match:bool=False, server_up:int=None, server_up_ports:int=None)->str:
     """
     Convert the IP Addresses in the data list into a strings separated by newline.
     """
-    
+
     text = ""
     for i in data[1:]:
         if os_match and not len(i["os"]):
@@ -118,9 +118,9 @@ def data_to_text(data: list, ports_only:list=None, ports_any:list=None, ports_nu
         addr = [j for j in i["addr"] if j["addrtype"] == "ipv4" or j["addrtype"] == "ipv6"]
         if not addr:
             continue
-        if server_up_ports and not (len([j for j in i["ports"] if j["portid"] in ["80", "8080", "443", "8443"]]) > 0 and (are_servers_up(addr=[j['addr'] for j in addr]) or are_servers_up(addr=[j['name'] for j in i["hostnames"]]))):
+        if server_up_ports and not (len([j for j in i["ports"] if j["portid"] in ["80", "8080", "443", "8443"]]) > 0 and (are_servers_up(addr=[j['addr'] for j in addr], timeout=server_up_ports) or are_servers_up(addr=[j['name'] for j in i["hostnames"]], timeout=server_up_ports))):
             continue
-        if server_up and not (are_servers_up(addr=[j['addr'] for j in addr]) or are_servers_up(addr=[j['name'] for j in i["hostnames"]])):
+        if server_up and not (are_servers_up(addr=[j['addr'] for j in addr], timeout=server_up_ports) or are_servers_up(addr=[j['name'] for j in i["hostnames"]], timeout=server_up_ports)):
             continue
         text += addr[0]["addr"] + "\n"
     return text
@@ -187,14 +187,14 @@ def port_str_to_list(port_str:str)->list[str]:
     except:
         return None
     
-def are_servers_up(addr=list[str])->bool:
+def are_servers_up(addr:list[str], timeout:int)->bool:
     """
     Return True if an IP address within a list of IP addresses has an online web server.
     Returns False for otherwise.
     """
     for i in addr:
         try:
-            page = requests.get(f"http://{i}")
+            page = requests.get(f"http://{i}", timeout=timeout)
             return True
         except:
             continue
@@ -218,11 +218,12 @@ if __name__ == '__main__':
     {__ARGS__["ports_number"]} <num>: only include IP addresses with at least a given number of open ports 
     {__ARGS__["os_match"]}: only include IP addresses with an OS match
     {__ARGS__["has_domain"]}: only include IP addresses with domain names
-    {__ARGS__["server_up"]}: only include IP addresses with online web servers
-    {__ARGS__["server_up_ports"]}: similar to {__ARGS__["server_up"]} except only include addresses with open ports 80,8080,443,8443""")
+    {__ARGS__["server_up"]} <timeout sec>: only include IP addresses with online web servers and given timeout in seconds
+    {__ARGS__["server_up_ports"]} <timeout sec>: similar to {__ARGS__["server_up"]} except only include addresses with open ports 80,8080,443,8443""")
         sys.exit(1)
-
-    if len(set(sys.argv)) != len(sys.argv):
+    
+    opt_keys = [i for i in sys.argv if i in list(__ARGS__.values())]
+    if len(set(opt_keys)) != len(opt_keys):
         print("Cannot have repeated options.")
         sys.exit(5)
 
@@ -237,9 +238,9 @@ if __name__ == '__main__':
 
     options = {}
     for a in args:
-        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"]]:
+        if a[0] in [__ARGS__["input"], __ARGS__["output"], __ARGS__["csv"], __ARGS__["ports_only"], __ARGS__["ports_any"], __ARGS__["ports_number"], __ARGS__["json"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
             options[a[0]] = a[1]
-        elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"], __ARGS__["server_up"], __ARGS__["server_up_ports"]]:
+        elif a[0] in [__ARGS__["print"], __ARGS__["has_domain"], __ARGS__["os_match"]]:
             options[a[0]] = True
 
     if __ARGS__["input"] not in options:
@@ -275,16 +276,32 @@ if __name__ == '__main__':
             print(f"Invalid argument for {__ARGS__['ports_number']}.")
             sys.exit(8)
 
+    server_up = None
+    if __ARGS__["server_up"] in options:
+        try:
+            server_up = int(options[__ARGS__["server_up"]])
+        except ValueError:
+            print(f"Invalid argument: {__ARGS__["server_up"]} {options[__ARGS__["server_up"]]}")
+            sys.exit(10)
+
+    server_up_ports = None
+    if __ARGS__["server_up_ports"] in options: 
+        try:
+            server_up_ports = int(options[__ARGS__["server_up_ports"]])
+        except ValueError:
+            print(f"Invalid argument: {__ARGS__["server_up_ports"]} {options[__ARGS__["server_up_ports"]]}")
+            sys.exit(11)
+
     data = extract_data(options[__ARGS__["input"]])
     #print(data)
 
     text = None
     if __ARGS__["print"] in options:
-        text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=__ARGS__["server_up"] in options, server_up_ports=__ARGS__["server_up_ports"] in options)
+        text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=server_up, server_up_ports=server_up_ports)
         print(text)
 
     if __ARGS__["output"] in options:
-        if text is None: text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=__ARGS__["server_up"] in options, server_up_ports=__ARGS__["server_up_ports"] in options)
+        if text is None: text = data_to_text(data, ports_only=ports_only, ports_any=ports_any, ports_number=ports_number, has_domain=__ARGS__["has_domain"] in options, os_match=__ARGS__["os_match"] in options, server_up=server_up, server_up_ports=server_up_ports)
         if not write_txt(options[__ARGS__["output"]], text):
             print(f"{options[__ARGS__['output']]} failed to save.")
 
