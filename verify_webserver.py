@@ -11,7 +11,7 @@ import os
 
 
 if len(sys.argv) != 3:
-        print("python3 verify_webserver.py <input_newline_ips_txt> <output_ips_202>")
+        print("python3 verify_webserver.py <input_newline_ips_txt> <output_ips_200>")
         sys.exit(1)
 
 input_path = sys.argv[1]
