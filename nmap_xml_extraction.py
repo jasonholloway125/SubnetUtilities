@@ -202,10 +202,14 @@ def are_servers_up(addr:list[str], timeout:int)->bool:
     """
     for i in addr:
         try:
-            page = requests.get(f"http://{i}", timeout=timeout)
+            requests.get(f"http://{i}", timeout=timeout)
             return True
         except:
-            continue
+            try:
+                requests.get(f"https://{i}", timeout=timeout)
+                return True
+            except:
+                continue
     return False
 
 
